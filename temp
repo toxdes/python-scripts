@@ -1,0 +1,16 @@
+usage: youtube.py [-h] [-c] [-p] [-q {240p,360p,480p,720p,1080p,1440p}] [-a]
+                  [-o OUTPUT_DIR] [-r] [-i]
+
+Helper Script for youtube-dl.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c                    Get video link from clipboard.
+  -p                    Treat the link as if it is a playlist.
+  -q {240p,360p,480p,720p,1080p,1440p}
+                        Default is 360p
+  -a                    Download best quality audio only.
+  -o OUTPUT_DIR         Default is current directory.
+  -r                    Do not download, just output the generated command
+                        only.
+  -i                    Print list of available formats to download.
