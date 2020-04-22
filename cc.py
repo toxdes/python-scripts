@@ -2,21 +2,26 @@
 # `make` is the right tool for it.
 # I should just spend some time with bash, this is getting embarrasing.
 
-import subprocess, shlex
-import sys, os
+import subprocess
+import shlex
+import sys
+import os
 
 options = {}
 
-flags = "-Weverything -g"
-options['c'] = f'clang {flags}'
-options['cpp'] = f'clang++ {flags}'
+c_flags = "-std=c11 -g -Weverything -O0"
+cpp_flags = "-std=c++17 -g -O0"
+options['c'] = f'clang {c_flags}'
+options['cpp'] = f'clang++ {cpp_flags}'
 
 args = sys.argv
 
 lang = args[1]
-cmd = f'{options[lang]} {os.path.abspath(os.curdir)}/{args[2]}'
+output_file = args[2].split('.')[:-1]
+output_file = ".".join(output_file)
+cmd = f'{options[lang]} {os.path.abspath(os.curdir)}/{args[2]} -o {output_file}'
 
-print(cmd)
+# print(cmd)
 print('Compiling...', end="")
 status = subprocess.run(shlex.split(cmd))
 
@@ -28,7 +33,6 @@ print('Done!')
 
 print("\n-------- OUTPUT --------\n")
 
-cmd = f'./a.out < in.txt'
+cmd = f'./{output_file}'
 subprocess.run(shlex.split(cmd))
 print()
-
