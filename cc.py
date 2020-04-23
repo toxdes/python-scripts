@@ -17,6 +17,22 @@ options['cpp'] = f'clang++ {cpp_flags}'
 args = sys.argv
 
 lang = args[1]
+
+# prep means create cpp files for each problem, in file too
+if(lang == 'prep'):
+    dirname = input("Directory Name: ")
+    path = os.path.abspath(os.curdir)
+    cmd = []
+    cmd.append(f"mkdir -p {path}/{dirname}")
+    for a in ['A', 'B', 'C', 'D', 'E', 'F']:
+        cmd.append(f'touch  {path}/{dirname}/{a}.cpp')
+    cmd.append(f'touch  {path}/{dirname}/in')
+    for each in cmd:
+        print(each)
+        subprocess.run(shlex.split(each))
+    print("created directories and files, you should be okay")
+    exit()
+
 output_file = args[2].split('.')[:-1]
 output_file = ".".join(output_file)
 cmd = f'{options[lang]} {os.path.abspath(os.curdir)}/{args[2]} -o {output_file}'
