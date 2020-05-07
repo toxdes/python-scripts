@@ -4,7 +4,7 @@ These repository contains some helper scripts I've written for day to day use. T
 
 Most stuff can be done with bash scripts, but it was way to difficult for me to run, and also my love for python.
 
-Most files here are aliased conviniently in the `aliasrc` of the dotfiles repo, to make them actually usable.
+Most files here are aliased conviniently in the [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config_files/ALIASRC) of the dotfiles repo, to make them actually usable.
 
 This repo also contains some `bash` files, cause they're super simple _and_ useful.
 
