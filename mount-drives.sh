@@ -1,9 +1,12 @@
-sudo mkdir -p /mnt/one
-sudo mkdir -p /mnt/two
-sudo mkdir -p /mnt/three
-sudo mkdir -p /mnt/four
+DRIVES="$HOME/drives"
 
-sudo mount /dev/sda4 /mnt/one
-sudo mount /dev/sda6 /mnt/two
-sudo mount /dev/sda7 /mnt/three
-sudo mount /dev/sda8 /mnt/four
+mkdir -p $DRIVES/one
+mkdir -p $DRIVES/two
+mkdir -p $DRIVES/three
+mkdir -p $DRIVES/four
+
+sudo mount /dev/sda4 $DRIVES/one -o uid=$(id -u $USER)
+sudo mount /dev/sda6 $DRIVES/two -o uid=$(id -u $USER)
+sudo mount /dev/sda7 $DRIVES/three -o uid=$(id -u $USER)
+sudo mount /dev/sda8 $DRIVES/four -o uid=$(id -u $USER)
+
