@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # helper code for using youtube-dl
 # not complete yet, need to add a output format option, save to directory option
 # almost complete, just testing is remaining. Should be useful by now.

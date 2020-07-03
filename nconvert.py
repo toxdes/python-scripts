@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # number systems
 base = int(input("Base : "))
 n = int(input("Number : "), base)

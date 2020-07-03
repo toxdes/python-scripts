@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import sys
 print(" arguments are - ")
 for i, each in enumerate(sys.argv):

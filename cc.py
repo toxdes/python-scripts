@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # I'm an idiot btw, what I wanted to achieve with this script
 # `make` is the right tool for it.
 # I should just spend some time with bash, this is getting embarrasing.
