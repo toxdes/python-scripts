@@ -10,28 +10,50 @@ import os
 
 options = {}
 
-c_flags = "-std=c11 -g -Weverything -O0"
-cpp_flags = "-std=c++17 -g -O0"
-options['c'] = f'clang {c_flags}'
-options['cpp'] = f'clang++ {cpp_flags}'
+c_flags = "-std=c11 -g -Wall"
+cpp_flags = "-std=c++17 -O3"
+options['c'] = f'gcc {c_flags}'
+options['cpp'] = f'g++ {cpp_flags}'
 
 args = sys.argv
 
 lang = args[1]
 
 # prep means create cpp files for each problem, in file too
+# precompile the headers to save time during actual compilations
+# because it's taking 7ish seconds to compile each time
+# which is true pain.
+
 if(lang == 'prep'):
-    dirname = input("Directory Name: ")
+    dirname = None
+    if(len(args) > 1):
+        dirname = args[2]
+    else:
+        dirname = input("Directory: ")
     path = os.path.abspath(os.curdir)
+    create_files = False
+    for e in args:
+        if e =="-f":
+            create_files = True
     cmd = []
     cmd.append(f"mkdir -p {path}/{dirname}")
-    for a in ['A', 'B', 'C', 'D', 'E', 'F']:
-        cmd.append(f'touch  {path}/{dirname}/{a}.cpp')
+    cmd.append(f"mkdir -p {path}/{dirname}/bits")
+    if create_files:
+        for a in ['A', 'B', 'C', 'D', 'E', 'F']:
+            cmd.append(f'touch  {path}/{dirname}/{a}.cpp')
     cmd.append(f'touch  {path}/{dirname}/in')
     for each in cmd:
         print(each)
         subprocess.run(shlex.split(each))
-    print("created directories and files, you should be okay")
+    print("Created directory and default files...")
+    # grab the path of actual bits/stdc++.h header file
+    STD_CPP_HEADER_PATH = "/usr/include/x86_64-linux-gnu/c++/9/bits/stdc++.h"
+    subprocess.run(shlex.split(
+        f'cp {STD_CPP_HEADER_PATH} {path}/{dirname}/bits/'))
+    print("Copied bits/stdc++.h")
+    subprocess.run(shlex.split(
+        f'g++ --std=c++17 {path}/{dirname}/bits/stdc++.h -o {path}/{dirname}/bits/stdc++.h.gch'))
+    print("Compiled header. All good.")
     exit()
 
 output_file = args[2].split('.')[:-1]
