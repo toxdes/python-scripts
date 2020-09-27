@@ -16,8 +16,7 @@ Helper script on top of `youtube-dl` to make downloading way easier.
 Requires `xclipboard`.
 
 ```shell
-usage: youtube.py [-h] [-c] [-p] [-q {240p,360p,480p,720p,1080p,1440p}] [-a]
-                  [-o OUTPUT_DIR] [-r] [-i]
+usage: youtube.py [-h] [-c] [-p] [-q {240p,360p,480p,720p,1080p,1440p}] [-a] [-o OUTPUT_DIR] [-r] [-i] [-e] [-t]
 
 Helper Script for youtube-dl.
 
@@ -29,29 +28,44 @@ optional arguments:
                         Default is 360p
   -a                    Download best quality audio only.
   -o OUTPUT_DIR         Default is current directory.
-  -r                    Do not download, just output the generated command
-                        only.
+  -r                    Do not download, just output the generated command only.
   -i                    Print list of available formats to download.
+  -e                    Use aria2c as the external downloader
+  -t                    Custom script for twitch
 ```
 
 ##### Examples
 
 ```shell
 $ yt -cq 720p # video
-$ yt -cap #mp3 songs playlist
-$ yt -cpq 480p #downloading lectures playlist
+$ yt -cap # mp3 songs playlist
+$ yt -cpq 480p # downloading lectures playlist
 $ yt -rcpq 1080p # debug, check if the command is okay
 ```
 
 ### 2. `cc.py`
 
 For compiling `C` and `C++` files, this was created when I was unaware of makefiles, but it's handy while testing `C` or `C++` code snippets.
+Also included `prep` subcommand that takes / asks for a directory name, and optionally takes `-f` argument. 
+
+`prep` command does the following: 
+1. Ask for `dir_name` if not provided in args.
+2. Create a new dir named `dir_name`.
+3. If `-f` was provided then create 6 empty files in the newly created directory, namely `A.cpp, B.cpp, ..., F.cpp`, otherwise skip this step.
+4. Copy `bits/stdc++.h` from the user's machine, to the newly created directory as `bits/stdc++.h`. This is useful, because it used to take 7ish seconds to compile each C++ file since my laptop is slow. Now, we precompile this header, so that each individual C++ file uses this header compiles in 1-2ish seconds. Huge time saved!
+5. Compile the locally copied `bits/stdc++.h` header.
+6. Done!
+
+Nowadays, I use it a lot (especially the `prep` subcommand).
+
+**Note** - This one's aliased conveniently in [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config_files/ALIASRC). 
 
 ##### Examples
 
 ```shell
-$ c test_pointers.c
-$ cpp wow.cpp
+$ c test_pointers.c # Compile and run C file 
+$ cpp wow.cpp # Compile and run C++ file
+$ prep abc175 # do steps menotioned above.
 ```
 
 ### 3. `days.py`
@@ -85,10 +99,10 @@ For converting numbers to and from different number systems. This script was han
 ##### Examples
 
 ```shell
-$ nums #interactive
+$ nums # interactive
 Base : 16 # enter base
 Number : ffc # number
-Decimal:4092 #results
+Decimal:4092 # results
 Binary:0b111111111100
 Octal:0o7774
 Hex:0xffc
