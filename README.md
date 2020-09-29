@@ -4,7 +4,7 @@ These repository contains some helper scripts I've written for day to day use. T
 
 Most stuff can be done with bash scripts, but it was way to difficult for me to run, and also my love for python.
 
-Most files here are aliased conviniently in the [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config_files/ALIASRC) of the dotfiles repo, to make them actually usable.
+Most files here are aliased conviniently in the [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config-files/ALIASRC) of the dotfiles repo, to make them actually usable.
 
 This repo also contains some `bash` files, cause they're super simple _and_ useful.
 
@@ -41,6 +41,7 @@ $ yt -cq 720p # video
 $ yt -cap # mp3 songs playlist
 $ yt -cpq 480p # downloading lectures playlist
 $ yt -rcpq 1080p # debug, check if the command is okay
+$ yt -tcq 360p # twitch vod
 ```
 
 ### 2. `cc.py`
@@ -58,7 +59,7 @@ Also included `prep` subcommand that takes / asks for a directory name, and opti
 
 Nowadays, I use it a lot (especially the `prep` subcommand).
 
-**Note** - This one's aliased conveniently in [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config_files/ALIASRC). 
+**Note** - This one's aliased conveniently in [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config-files/ALIASRC). 
 
 ##### Examples
 
