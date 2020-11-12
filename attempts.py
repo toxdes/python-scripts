@@ -31,7 +31,7 @@ if 'read' in sys.argv:
         entries_per_row = 2
         print("len is {}".format(len(dirs)))
         for i, each in enumerate(dirs):
-            if(i%entries_per_row == 0):
+            if(i % entries_per_row == 0):
                 print()
             print(f"{i+1}:{dirs[i]:<20}", end="")
         print()

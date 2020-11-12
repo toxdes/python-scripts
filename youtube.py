@@ -16,20 +16,23 @@ output_format = 'mkv'
 
 parser = ArgumentParser(description="Helper Script for youtube-dl.")
 parser.add_argument('-c', dest="link",
-        help="Get video link from clipboard.", action="store_true")
+                    help="Get video link from clipboard.", action="store_true")
 parser.add_argument('-p', dest="playlist",
-        help="Treat the link as if it is a playlist.", action="store_true")
+                    help="Treat the link as if it is a playlist.", action="store_true")
 parser.add_argument('-q', dest="quality",
-        help=f"Default is {choices[DEFAULT_CHOICE]}", choices=choices)
+                    help=f"Default is {choices[DEFAULT_CHOICE]}", choices=choices)
 parser.add_argument('-a', dest='audio_only', action='store_true',
-        help='Download best quality audio only.')
+                    help='Download best quality audio only.')
 parser.add_argument('-o', dest="output_dir",
-        help=f"Default is current directory.")
+                    help=f"Default is current directory.")
 parser.add_argument('-r', dest="print_only", action="store_true",
-        help="Do not download, just output the generated command only.")
-parser.add_argument('-i', dest="list_formats", help="Print list of available formats to download.", action="store_true")
-parser.add_argument('-e', dest="external_downloader", help="Use aria2c as the external downloader", action="store_true")
-parser.add_argument('-t', dest="is_twitch", help="Custom script for twitch", action="store_true")
+                    help="Do not download, just output the generated command only.")
+parser.add_argument('-i', dest="list_formats",
+                    help="Print list of available formats to download.", action="store_true")
+parser.add_argument('-e', dest="external_downloader",
+                    help="Use aria2c as the external downloader", action="store_true")
+parser.add_argument('-t', dest="is_twitch",
+                    help="Custom script for twitch", action="store_true")
 
 args = parser.parse_args()
 
@@ -40,7 +43,7 @@ def get_link_url(link):
     if link:
         clipboard_cmd = "xclip -o -selection clipboard"
         p = subprocess.Popen(shlex.split(clipboard_cmd),
-                stdout=subprocess.PIPE)
+                             stdout=subprocess.PIPE)
         link_url = p.stdout.read().decode('utf-8')
         video_quality = 'not_necessary'
     else:
@@ -51,7 +54,7 @@ def get_link_url(link):
 
 def Main():
     link_flag, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch = (
-            args.link, args.playlist, args.quality, args.output_dir, args.audio_only, args.print_only, args.list_formats, args.external_downloader, args.is_twitch)
+        args.link, args.playlist, args.quality, args.output_dir, args.audio_only, args.print_only, args.list_formats, args.external_downloader, args.is_twitch)
     # pprint(args)
     if is_twitch:
         link = input('VOD URL: ')
@@ -81,16 +84,17 @@ def Main():
         video_quality = f'bestaudio'
     cmd = f'youtube-dl -f {video_quality} -o {output_dir}/{video_title} --merge-output-format {output_format} {link_url} '
     if external_downloader:
-        cmd=f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
+        cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
     if playlist_flag:
         cmd = f'{cmd} --yes-playlist'
     if not playlist_flag:
         cmd = f'{cmd} --no-playlist --playlist-start 1 --playlist-end 1'
     if list_formats:
-        cmd=f'youtube-dl -F {link_url} --no-playlist'
+        cmd = f'youtube-dl -F {link_url} --no-playlist'
     print(str(cmd))
     if not print_only:
         p = subprocess.run(shlex.split(cmd))
+
 
 # run main
 Main()
