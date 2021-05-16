@@ -4,7 +4,7 @@ These repository contains some helper scripts I've written for day to day use. T
 
 Most stuff can be done with bash scripts, but it was way to difficult for me to run, and also my love for python.
 
-Most files here are aliased conviniently in the [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config-files/ALIASRC) of the dotfiles repo, to make them actually usable.
+Most files here are aliased conveniently in the [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config-files/ALIASRC) of the dotfiles repo, to make them actually usable.
 
 This repo also contains some `bash` files, cause they're super simple _and_ useful.
 
@@ -44,12 +44,15 @@ $ yt -rcpq 1080p # debug, check if the command is okay
 $ yt -tcq 360p # twitch vod
 ```
 
-### 2. `cc.py`
+### 2. `cc.py` and `cparser`
 
 For compiling `C` and `C++` files, this was created when I was unaware of makefiles, but it's handy while testing `C` or `C++` code snippets.
-Also included `prep` subcommand that takes / asks for a directory name, and optionally takes `-f` argument. 
+Also included `prep` subcommand that takes / asks for a directory name, and optionally takes `-f` argument.
 
-`prep` command does the following: 
+_All scripts are aliased conveniently in [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config-files/ALIASRC)._
+
+`prep` command does the following:
+
 1. Ask for `dir_name` if not provided in args.
 2. Create a new dir named `dir_name`.
 3. If `-f` was provided then create 6 empty files in the newly created directory, namely `A.cpp, B.cpp, ..., F.cpp`, otherwise skip this step.
@@ -59,12 +62,26 @@ Also included `prep` subcommand that takes / asks for a directory name, and opti
 
 Nowadays, I use it a lot (especially the `prep` subcommand).
 
-**Note** - This one's aliased conveniently in [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config-files/ALIASRC). 
+#### Notes for cparser
+
+`server.py` listens to POST requests to a specified port, the competitive
+companion browser extension posts parsed problems to this endpoint,
+and creates a `samples` directory, for each testcase.
+
+`run.py` compiles and runs the program against the parsed sample test
+cases.
+
+`run.py custom` compiles, and runs against user input.
+
+`server.py` is used as a daemon process, in the background so it's
+aliased as `cphd`.
+
+`run.py` is used as a script, so it's aliased as `cpr`.
 
 ##### Examples
 
 ```shell
-$ c test_pointers.c # Compile and run C file 
+$ c test_pointers.c # Compile and run C file
 $ cpp wow.cpp # Compile and run C++ file
 $ prep abc175 # do steps menotioned above.
 ```
@@ -112,7 +129,7 @@ Hex:0xffc
 
 ### 6. `googler.py`
 
-This was created when I was unaware of DuckDuckGo's Bangs. Functionality is same, most used sites by me are included. Wanted to use terminal binary `googler`, but I guess it turned out to be inconvinient, so now links are opened in browser instead.
+This was created when I was unaware of DuckDuckGo's Bangs. Functionality is same, most used sites by me are included. Wanted to use terminal binary `googler`, but I guess it turned out to be inconvenient, so now links are opened in browser instead.
 
 I don't use it anymore because of DuckDuckGo, so no examples for this.
 

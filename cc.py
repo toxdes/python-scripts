@@ -11,7 +11,7 @@ import os
 options = {}
 
 c_flags = "-std=c11 -g -Wall"
-cpp_flags = "-std=c++17 -O3"
+cpp_flags = "-std=c++17"
 options['c'] = f'gcc {c_flags}'
 options['cpp'] = f'g++ {cpp_flags}'
 
