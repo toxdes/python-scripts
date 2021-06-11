@@ -35,7 +35,11 @@ sys.stdout.flush()
 
 if(CUSTOM):
     print(f"{colors.BLUE} 🔵 Running Custom Invocation {colors.END}")
-    subprocess.run(shlex.split(f'{WORKDIR}/samples/a'))
+    try:
+        subprocess.run(shlex.split(f'{WORKDIR}/samples/a'))
+    except:
+        os.mkdir(f'{WORKDIR}/samples')
+        subprocess.run(shlex.split(f'{WORKDIR}/samples/a'))
     sys.stdout.flush()
     exit(0)
 
