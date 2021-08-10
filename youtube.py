@@ -15,7 +15,7 @@ DEFAULT_CHOICE = 1
 output_format = 'mkv'
 
 parser = ArgumentParser(description="Helper Script for youtube-dl.")
-parser.add_argument('-c', dest="link",
+parser.add_argument('-c', dest="link_from_clipboard",
                     help="Get video link from clipboard.", action="store_true")
 parser.add_argument('-p', dest="playlist",
                     help="Treat the link as if it is a playlist.", action="store_true")
@@ -37,25 +37,24 @@ parser.add_argument('-t', dest="is_twitch",
 args = parser.parse_args()
 
 
-def get_link_url(link):
+def get_link_url(link_from_clipboard, video_quality):
     link_url = "link will be taken from clipborad"
-    video_quality = None
-    if link:
+    if link_from_clipboard:
+        # TODO: Make it platform independent
         clipboard_cmd = "xclip -o -selection clipboard"
         p = subprocess.Popen(shlex.split(clipboard_cmd),
                              stdout=subprocess.PIPE)
         link_url = p.stdout.read().decode('utf-8')
-        video_quality = 'not_necessary'
     else:
-        link_url = input("Enter Video URL : ")
+        link_url = input("Enter Video URL: ")
+    if video_quality is None or video_quality not in choices:
         video_quality = input(f'Enter Video Quality[{choices}]')
     return link_url, video_quality
 
 
 def Main():
-    link_flag, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch = (
-        args.link, args.playlist, args.quality, args.output_dir, args.audio_only, args.print_only, args.list_formats, args.external_downloader, args.is_twitch)
-    # pprint(args)
+    link_from_clipboard, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch = (
+        args.link_from_clipboard, args.playlist, args.quality, args.output_dir, args.audio_only, args.print_only, args.list_formats, args.external_downloader, args.is_twitch)
     if is_twitch:
         link = input('VOD URL: ')
         quality = input('Quality: ')
@@ -67,19 +66,15 @@ def Main():
         if not print_only:
             p = subprocess.run(shlex.split(cmd))
         exit(0)
-    link_url, video_quality_2 = get_link_url(link_flag)
-    # pprint(link_url)
+    link_url, video_quality = get_link_url(link_from_clipboard, video_quality)
     output_dir = output_dir or current_dir
-    video_quality = video_quality or choices[DEFAULT_CHOICE]
-    if video_quality_2 in choices:
-        video_quality = video_quality_2
-    elif video_quality_2 == 'not_necessary':
-        pass
-    else:
-        print("You're an idiot.\nAbort")
-        exit()
+    video_quality = video_quality
+    if video_quality not in choices:
+        video_quality = choices[DEFAULT_CHOICE]
     video_quality = f'bestvideo[height<={video_quality[:-1]}]+bestaudio/best[height<={video_quality[:-1]}]'
-    video_title = f'%(playlist_index)s_%(title)s.%(ext)s'
+    video_title = f'%(title)s.%(ext)s'
+    if playlist_flag:
+        video_title = f'%(playlist_index)s_{video_title}'
     if audio_only:
         video_quality = f'bestaudio'
     cmd = f'youtube-dl -f {video_quality} -o {output_dir}/{video_title} --merge-output-format {output_format} {link_url} '
