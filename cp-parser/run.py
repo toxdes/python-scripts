@@ -61,7 +61,7 @@ for i, each in enumerate(listing):
         ans_f.close()
         err_f.close()
         okay = subprocess.run(shlex.split(
-            f"diff -q {WORKDIR}/samples/res{i+1} {WORKDIR}/samples/out{i+1}"), stdout=DEVNULL, stderr=DEVNULL).returncode
+            f"diff -qZ {WORKDIR}/samples/res{i+1} {WORKDIR}/samples/out{i+1}"), stdout=DEVNULL, stderr=DEVNULL).returncode
         if(okay == 0):
             print(f" ✅ {colors.BOLD}{colors.GREEN}Passed{colors.END}")
             continue
