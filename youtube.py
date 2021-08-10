@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 # helper code for using youtube-dl
-# not complete yet, need to add a output format option, save to directory option
 # almost complete, just testing is remaining. Should be useful by now.
 from argparse import ArgumentParser
 from pprint import pprint
@@ -38,9 +37,15 @@ args = parser.parse_args()
 
 
 def get_link_url(link_from_clipboard, video_quality):
+    ''' Get link and video quality.
+            Determines if link is to be copied from clipboard, and if the video quality is valid, otherwise asks user about the same through stdin.
+        Agruments:
+            `link_from_clipboard` -- if the link should be taken from clipboard (Boolean) 
+            `video_quality` -- video quality that should be checked for validation
+    '''
     link_url = "link will be taken from clipborad"
     if link_from_clipboard:
-        # TODO: Make it platform independent
+        # TODO: Make this platform independent
         clipboard_cmd = "xclip -o -selection clipboard"
         p = subprocess.Popen(shlex.split(clipboard_cmd),
                              stdout=subprocess.PIPE)
@@ -48,14 +53,17 @@ def get_link_url(link_from_clipboard, video_quality):
     else:
         link_url = input("Enter Video URL: ")
     if video_quality is None or video_quality not in choices:
-        video_quality = input(f'Enter Video Quality[{choices}]')
+        video_quality = str(input(f'Enter Video Quality[{choices}]: '))
     return link_url, video_quality
 
 
 def Main():
+    # mapping arguments to variables
     link_from_clipboard, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch = (
         args.link_from_clipboard, args.playlist, args.quality, args.output_dir, args.audio_only, args.print_only, args.list_formats, args.external_downloader, args.is_twitch)
+
     if is_twitch:
+        # twitch specific special flags
         link = input('VOD URL: ')
         quality = input('Quality: ')
         cmd = f"youtube-dl -f {quality}"
@@ -66,18 +74,25 @@ def Main():
         if not print_only:
             p = subprocess.run(shlex.split(cmd))
         exit(0)
+
+    # prepare video url and quality
     link_url, video_quality = get_link_url(link_from_clipboard, video_quality)
+    # prepare output directory
     output_dir = output_dir or current_dir
-    video_quality = video_quality
+    # prepare video quality
     if video_quality not in choices:
+        # user managed to enter wrong quality so we reset to default choice instead of exiting
         video_quality = choices[DEFAULT_CHOICE]
     video_quality = f'bestvideo[height<={video_quality[:-1]}]+bestaudio/best[height<={video_quality[:-1]}]'
+    if audio_only:
+        video_quality = f'bestaudio'
+    # prepare video title
     video_title = f'%(title)s.%(ext)s'
     if playlist_flag:
         video_title = f'%(playlist_index)s_{video_title}'
-    if audio_only:
-        video_quality = f'bestaudio'
+    # prepare youtube-dl command
     cmd = f'youtube-dl -f {video_quality} -o {output_dir}/{video_title} --merge-output-format {output_format} {link_url} '
+    # self-explanatory flags
     if external_downloader:
         cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
     if playlist_flag:
@@ -86,10 +101,12 @@ def Main():
         cmd = f'{cmd} --no-playlist --playlist-start 1 --playlist-end 1'
     if list_formats:
         cmd = f'youtube-dl -F {link_url} --no-playlist'
+    # print the generated command
     print(str(cmd))
     if not print_only:
+        # actually run the command
         p = subprocess.run(shlex.split(cmd))
 
 
-# run main
+# run Main
 Main()
