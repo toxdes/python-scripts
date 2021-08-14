@@ -79,7 +79,7 @@ def get_clipboard_text_windows(user32):
 
 
 def get_clipboard_text_android():
-    return subprocess.Popen(shlex.split('termux-get-clipboard'), stdout=subprocess.PIPE).stdout.read().decode('utf-8')
+    return subprocess.Popen(shlex.split('termux-clipboard-get'), stdout=subprocess.PIPE).stdout.read().decode('utf-8')
 
 
 def get_link_url(link_from_clipboard, video_quality):
