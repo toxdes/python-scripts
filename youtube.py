@@ -13,6 +13,16 @@ current_dir = os.path.abspath(os.curdir)
 DEFAULT_CHOICE = 1
 output_format = 'mkv'
 
+IS_WINDOWS = os.name == 'nt'
+IS_ANDROID = False
+
+# check if script is running on Android (because we need distinguish android from linux when using clipboard)
+if not IS_WINDOWS:
+    uname_o = subprocess.Popen(shlex.split(
+        'uname -o'), stdout=subprocess.PIPE).stdout.read().decode('utf-8').strip()
+    IS_ANDROID = uname_o == 'Android'
+
+# CLI Parser
 parser = ArgumentParser(description="Helper Script for youtube-dl.")
 parser.add_argument('-c', dest="link_from_clipboard",
                     help="Get video link from clipboard.", action="store_true")
@@ -35,6 +45,42 @@ parser.add_argument('-t', dest="is_twitch",
 
 args = parser.parse_args()
 
+# windows specific code to access clipboard
+user32 = None
+if IS_WINDOWS:
+    import ctypes
+    CF_TEXT = 1
+    kernel32 = ctypes.windll.kernel32
+    kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    user32 = ctypes.windll.user32
+    user32.GetClipboardData.restype = ctypes.c_void_p
+
+# stolen from https://stackoverflow.com/a/23285159
+
+
+def get_clipboard_text_windows(user32):
+    if not user32:
+        print('You are not on windows / clipboard is not accesible.')
+        print('Abort.')
+        exit(1)
+    user32.OpenClipboard(0)
+    try:
+        if user32.IsClipboardFormatAvailable(CF_TEXT):
+            data = user32.GetClipboardData(CF_TEXT)
+            data_locked = kernel32.GlobalLock(data)
+            text = ctypes.c_char_p(data_locked)
+            value = text.value
+            kernel32.GlobalUnlock(data_locked)
+            return value.decode('utf-8')
+    finally:
+        user32.CloseClipboard()
+
+
+def get_clipboard_text_android():
+    return subprocess.Popen(shlex.split('termux-get-clipboard'), stdout=subprocess.PIPE).stdout.read().decode('utf-8')
+
 
 def get_link_url(link_from_clipboard, video_quality):
     ''' Get link and video quality.
@@ -45,11 +91,19 @@ def get_link_url(link_from_clipboard, video_quality):
     '''
     link_url = "link will be taken from clipborad"
     if link_from_clipboard:
-        # TODO: Make this platform independent
         clipboard_cmd = "xclip -o -selection clipboard"
-        p = subprocess.Popen(shlex.split(clipboard_cmd),
-                             stdout=subprocess.PIPE)
-        link_url = p.stdout.read().decode('utf-8')
+        try:
+            if IS_WINDOWS:
+                link_url = get_clipboard_text_windows(user32)
+            elif IS_ANDROID:
+                link_url = get_clipboard_text_android()
+            else:
+                p = subprocess.Popen(shlex.split(clipboard_cmd),
+                                     stdout=subprocess.PIPE)
+                link_url = p.stdout.read().decode('utf-8')
+        except:
+            print('Clipboard access not available.')
+            link_url = input('Enter Video URL: ')
     else:
         link_url = input("Enter Video URL: ")
     if video_quality is None or video_quality not in choices:
