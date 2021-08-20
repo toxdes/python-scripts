@@ -78,8 +78,11 @@ def get_clipboard_text_windows(user32):
         user32.CloseClipboard()
 
 
+# termux-clipboard-get doesn't work on Android 7.0 and probably prior, so fallback to stdin
 def get_clipboard_text_android():
-    return subprocess.Popen(shlex.split('termux-clipboard-get'), stdout=subprocess.PIPE).stdout.read().decode('utf-8')
+    res = subprocess.run(shlex.split('termux-clipboard-get'),
+                         stdout=subprocess.PIPE, timeout=1)
+    return res.stdout.decode('utf-8')
 
 
 def get_link_url(link_from_clipboard, video_quality):
@@ -98,9 +101,9 @@ def get_link_url(link_from_clipboard, video_quality):
             elif IS_ANDROID:
                 link_url = get_clipboard_text_android()
             else:
-                p = subprocess.Popen(shlex.split(clipboard_cmd),
-                                     stdout=subprocess.PIPE)
-                link_url = p.stdout.read().decode('utf-8')
+                res = subprocess.run(shlex.split(clipboard_cmd),
+                                     stdout=subprocess.PIPE, timeout=1)
+                link_url = res.stdout.decode('utf-8')
         except:
             print('Clipboard access not available.')
             link_url = input('Enter Video URL: ')
