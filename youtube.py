@@ -42,6 +42,8 @@ parser.add_argument('-e', dest="external_downloader",
                     help="Use aria2c as the external downloader", action="store_true")
 parser.add_argument('-t', dest="is_twitch",
                     help="Custom script for twitch", action="store_true")
+parser.add_argument('-l', dest="link_from_args",
+                    help="Link to the youtube URL")
 
 args = parser.parse_args()
 
@@ -85,7 +87,7 @@ def get_clipboard_text_android():
     return res.stdout.decode('utf-8')
 
 
-def get_link_url(link_from_clipboard, video_quality):
+def get_link_url(link_from_args, link_from_clipboard, video_quality):
     ''' Get link and video quality.
             Determines if link is to be copied from clipboard, and if the video quality is valid, otherwise asks user about the same through stdin.
         Agruments:
@@ -93,7 +95,9 @@ def get_link_url(link_from_clipboard, video_quality):
             `video_quality` -- video quality that should be checked for validation
     '''
     link_url = "link will be taken from clipborad"
-    if link_from_clipboard:
+    if link_from_args:
+        link_url = link_from_args
+    elif link_from_clipboard:
         clipboard_cmd = "xclip -o -selection clipboard"
         try:
             if IS_WINDOWS:
@@ -116,8 +120,8 @@ def get_link_url(link_from_clipboard, video_quality):
 
 def Main():
     # mapping arguments to variables
-    link_from_clipboard, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch = (
-        args.link_from_clipboard, args.playlist, args.quality, args.output_dir, args.audio_only, args.print_only, args.list_formats, args.external_downloader, args.is_twitch)
+    link_from_args, link_from_clipboard, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch = (
+        args.link_from_args, args.link_from_clipboard, args.playlist, args.quality, args.output_dir, args.audio_only, args.print_only, args.list_formats, args.external_downloader, args.is_twitch)
 
     if is_twitch:
         # twitch specific special flags
@@ -133,7 +137,8 @@ def Main():
         exit(0)
 
     # prepare video url and quality
-    link_url, video_quality = get_link_url(link_from_clipboard, video_quality)
+    link_url, video_quality = get_link_url(
+        link_from_args, link_from_clipboard, video_quality)
     # prepare output directory
     output_dir = output_dir or current_dir
     # prepare video quality
