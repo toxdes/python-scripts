@@ -47,7 +47,7 @@ if(lang == 'prep'):
         subprocess.run(shlex.split(each))
     print("Created directory and default files...")
     # grab the path of actual bits/stdc++.h header file
-    STD_CPP_HEADER_PATH = "/usr/include/c++/10.2.0/x86_64-pc-linux-gnu/bits/stdc++.h"
+    STD_CPP_HEADER_PATH = "/usr/include/x86_64-linux-gnu/c++/9/bits/stdc++.h"
     subprocess.run(shlex.split(
         f'cp {STD_CPP_HEADER_PATH} {path}/{dirname}/bits/'))
     print("Copied bits/stdc++.h")

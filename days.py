@@ -21,23 +21,31 @@ def leaf_years_since(start):
     return res
 
 
-if not len(sys.argv) >= 2:
-    print(f'#day{get_since(start_date)} after the block.')
-    exit(0)
+def calc_days_since():
+    print("--- How old am I ---")
+    bd = input('Birth date[dd-mm-yyyy]: ')
+    bd = bd.split("-")
+    bd = [int(a) for a in bd]
+    try:
+        start_date = date(bd[2], bd[1], bd[0])
+        days = get_since(start_date)
+        year = days//365
+        days = days % 365 - leaf_years_since(start_date)
+        months = days//30
+        days = days % 30
+        print(f"\nYou are {year} years, {months} months, {days} days old.\n")
+    except:
+        print("you know what to do.")
+        print('Abort.')
+        exit(0)
 
-print("--- How old am I ---")
-bd = input('Birth date[dd-mm-yyyy]: ')
-bd = bd.split("-")
-bd = [int(a) for a in bd]
-try:
-    start_date = date(bd[2], bd[1], bd[0])
-    days = get_since(start_date)
-    year = days//365
-    days = days % 365 - leaf_years_since(start_date)
-    months = days//12
-    days = days % 12
-    print(f"\nYou are {year} years, {months} months, {days} days old.\n")
-except:
-    print("you know what to do.")
-    print('Abort.')
-    exit(0)
+def main():
+    if not len(sys.argv) >= 2:
+        print(f'#day {get_since(start_date)} after the block.')
+        exit(0)
+    else:
+        calc_days_since()
+
+
+main()
+

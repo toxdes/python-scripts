@@ -8,10 +8,14 @@ import sys
 import shlex
 import subprocess
 
+# easier to type factorial functionl
+f = factorial
+
 # combinations
 def C(n,r):
-    return factorial(n)/(factorial(r)*factorial(n-r))
+    return f(n)/(f(r)*f(n-r))
 
 # permutations
 def P(n,r):
-    return factorial(n)/(factorial(n-r))
+    return f(n)/(f(n-r))
+
