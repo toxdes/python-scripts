@@ -19,3 +19,6 @@ def C(n,r):
 def P(n,r):
     return f(n)/(f(n-r))
 
+# fuel cost 
+def fuel(dist, mileage = 40, cost_per_l =109):
+    return (dist*1.0 / mileage)*cost_per_l
