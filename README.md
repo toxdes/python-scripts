@@ -127,13 +127,7 @@ Hex:0xffc
 
 ```
 
-### 6. `googler.py`
-
-This was created when I was unaware of DuckDuckGo's Bangs. Functionality is same, most used sites by me are included. Wanted to use terminal binary `googler`, but I guess it turned out to be inconvenient, so now links are opened in browser instead.
-
-I don't use it anymore because of DuckDuckGo, so no examples for this.
-
-### 7. `imports.py`
+### 6. `imports.py`
 
 This is just because I wanted to avoid writing `import math`, everytime I wanted to use python as a calculator.
 
@@ -145,3 +139,26 @@ $ pc # imports mostly used modules
 3.3219280948873626
 >>>
 ```
+
+### 7. `chop.py`
+##### USAGE
+```shell
+$ chop <input.mp3> <segments.txt> <output_dir>
+```
+Splits `input.mp3` file to smaller `.mp3` files according to timestamps defined in `segments.txt`, and saves each file to the specified `output_dir`, `output_dir` is created if it does not exist.
+
+
+##### Sample segments.txt
+```
+00:05 INTRO
+03:49 First Part
+07:34 Second Part
+```
+will split the `input.mp3` into
+```
+INTRO.mp3 -> 00:05 - 03:48
+First Part.mp3 -> 03:49 - 07:34
+Second Part.mp3 -> 07:34 - 09:32
+```
+
+Assuming 09:32 is the duration of `input.mp3`
