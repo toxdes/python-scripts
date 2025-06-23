@@ -10,8 +10,8 @@ import subprocess
 # constants
 choices = ['240p', '360p', '480p', '720p', '1080p', '1440p']
 current_dir = os.path.abspath(os.curdir)
-DEFAULT_CHOICE = 1
-output_format = 'mkv'
+DEFAULT_CHOICE = 4
+output_format = 'mp4'
 
 IS_WINDOWS = os.name == 'nt'
 IS_ANDROID = False
@@ -23,7 +23,7 @@ if not IS_WINDOWS:
     IS_ANDROID = uname_o == 'Android'
 
 # CLI Parser
-parser = ArgumentParser(description="Helper Script for youtube-dl.")
+parser = ArgumentParser(description="Helper wrapper around youtube-dl for easier usage.")
 parser.add_argument('-c', dest="link_from_clipboard",
                     help="Get video link from clipboard.", action="store_true")
 parser.add_argument('-p', dest="playlist",
@@ -67,6 +67,7 @@ def get_clipboard_text_windows(user32):
         print('You are not on windows / clipboard is not accesible.')
         print('Abort.')
         exit(1)
+
     user32.OpenClipboard(0)
     try:
         if user32.IsClipboardFormatAvailable(CF_TEXT):
@@ -128,32 +129,44 @@ def Main():
         link = input('VOD URL: ')
         quality = input('Quality: ')
         cmd = f"youtube-dl -f {quality}"
+
         if external_downloader:
             cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
+
         cmd = f'{cmd} {link}'
+
         print(str(cmd))
         if not print_only:
             p = subprocess.run(shlex.split(cmd))
+
         exit(0)
 
     # prepare video url and quality
     link_url, video_quality = get_link_url(
         link_from_args, link_from_clipboard, video_quality)
+
     # prepare output directory
     output_dir = output_dir or current_dir
+
     # prepare video quality
     if video_quality not in choices:
         # user managed to enter wrong quality so we reset to default choice instead of exiting
         video_quality = choices[DEFAULT_CHOICE]
+
     video_quality = f'bestvideo[height<={video_quality[:-1]}]+bestaudio/best[height<={video_quality[:-1]}]'
+
     if audio_only:
         video_quality = f'bestaudio'
+
     # prepare video title
     video_title = f'%(title)s.%(ext)s'
+
     if playlist_flag:
         video_title = f'%(playlist_index)s_{video_title}'
+
     # prepare youtube-dl command
-    cmd = f'youtube-dl -f {video_quality} -o {output_dir}/{video_title} --merge-output-format {output_format} {link_url} '
+    cmd = f'youtube-dl -f {video_quality} -o {output_dir}/{video_title} --merge-output-format {output_format} {link_url}'
+
     # self-explanatory flags
     if external_downloader:
         cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
@@ -163,8 +176,10 @@ def Main():
         cmd = f'{cmd} --no-playlist --playlist-start 1 --playlist-end 1'
     if list_formats:
         cmd = f'youtube-dl -F {link_url} --no-playlist'
+
     # print the generated command
     print(str(cmd))
+
     if not print_only:
         # actually run the command
         p = subprocess.run(shlex.split(cmd))
