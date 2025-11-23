@@ -1,19 +1,19 @@
 # Python Scripts
 
-These repository contains some helper scripts I've written for day to day use. This was part of dotfiles repo before, now it's a different repo, cause why not?
+This repository contains some helper scripts I've written for day-to-day use. It was part of the [dotfiles repo](https://github.com/toxdes/dotfiles) earlier, but is now a separate repository for easier maintenance.
 
-Most stuff can be done with bash scripts, but it was way to difficult for me to run, and also my love for python.
+### Notes:
+1. Most of the things here can usually be achieved by using `bash` or `<your favourite shell>`, but `python` is easier.
 
-Most files here are aliased conveniently in the [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config-files/ALIASRC) of the dotfiles repo, to make them actually usable.
-
-This repo also contains some `bash` files, cause they're super simple _and_ useful.
+2. Most files here are aliased conveniently in the [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config-files/ALIASRC) of the dotfiles repo, to make them actually usable.
 
 # Content
 
 ### 1. `youtube.py`
 
-Helper script on top of `youtube-dl` to make downloading way easier.
-Requires `xclipboard`.
+**Depends On**: `xclipboard` and `youtube-dl` (`youtube-dlp`).
+
+This is a helper script on top of `youtube-dl` to make downloading way easier. This script can be installed by running `curl -fsSL sh.txds.me/yt | bash`, it installs both `youtube-dlp` and this wrapper script as well.
 
 ```shell
 usage: youtube.py [-h] [-c] [-p] [-q {240p,360p,480p,720p,1080p,1440p}] [-a] [-o OUTPUT_DIR] [-r] [-i] [-e] [-t]
@@ -41,12 +41,34 @@ $ yt -cq 720p # video
 $ yt -cap # mp3 songs playlist
 $ yt -cpq 480p # downloading lectures playlist
 $ yt -rcpq 1080p # debug, check if the command is okay
-$ yt -tcq 360p # twitch vod
+$ yt -tcq 360p # download twitch vod
 ```
 
-### 2. `cc.py` and `cparser`
 
-For compiling `C` and `C++` files, this was created when I was unaware of makefiles, but it's handy while testing `C` or `C++` code snippets.
+### 2. `display.py`
+
+**Depends On**: `xrandr` (X11) or `wlr-randr` (Wayland).
+
+Manages display configurations for multi-monitor setups. Supports switching between `laptop_only`, `external_only`, `external_mirrors_laptop`, and `external_extends_laptop`. 
+
+You need to first populate `Config` class to match your setup before use.
+
+```shell
+Usage: ./display.py <laptop_only | external_only | external_mirrors_laptop | external_extends_laptop>
+```
+
+##### Examples
+
+```shell
+$ ./display.py laptop_only
+$ ./display.py external_only
+$ ./display.py external_mirrors_laptop
+$ ./display.py external_extends_laptop
+```
+
+### 3. `cc.py` and `cparser`
+
+This script is useful for compiling `C` and `C++` files, this was created when I was unaware of makefiles, but it's handy while testing `C` or `C++` code snippets.
 Also included `prep` subcommand that takes / asks for a directory name, and optionally takes `-f` argument.
 
 _All scripts are aliased conveniently in [`aliasrc`](https://github.com/toxdes/dotfiles/blob/master/config-files/ALIASRC)._
@@ -56,13 +78,12 @@ _All scripts are aliased conveniently in [`aliasrc`](https://github.com/toxdes/d
 1. Ask for `dir_name` if not provided in args.
 2. Create a new dir named `dir_name`.
 3. If `-f` was provided then create 6 empty files in the newly created directory, namely `A.cpp, B.cpp, ..., F.cpp`, otherwise skip this step.
-4. Copy `bits/stdc++.h` from the user's machine, to the newly created directory as `bits/stdc++.h`. This is useful, because it used to take 7ish seconds to compile each C++ file since my laptop is slow. Now, we precompile this header, so that each individual C++ file uses this header compiles in 1-2ish seconds. Huge time saved!
+4. Copy `bits/stdc++.h` from the user's machine to the newly created directory. This is useful because it used to take ~7 seconds to compile each C++ file on a slow laptop. By precompiling this header locally, each individual C++ file now compiles in ~1-2 seconds—huge time savings!
 5. Compile the locally copied `bits/stdc++.h` header.
 6. Done!
 
-Nowadays, I use it a lot (especially the `prep` subcommand).
 
-#### Notes for cparser
+###### Notes for cparser
 
 `server.py` listens to POST requests to a specified port, the competitive
 companion browser extension posts parsed problems to this endpoint,
@@ -81,14 +102,15 @@ aliased as `cphd`.
 ##### Examples
 
 ```shell
-$ c test_pointers.c # Compile and run C file
-$ cpp wow.cpp # Compile and run C++ file
-$ prep abc175 # do steps menotioned above.
+$ c test_pointers.c # compiles and runs the C file
+$ cpp wow.cpp # compiles and runs the C++ file
+$ prep abc175 # does the steps mentioned above
 ```
 
-### 3. `days.py`
 
-For counting timespan, given the start-date. Handy to use when I have to find quickly time elapsed since some date, e.g. birthday.
+### 4. `days.py`
+
+Counts the time elapsed since a given start date. Handy for quickly finding how much time has passed since some date, e.g., a birthday.
 
 ##### Examples
 
@@ -97,22 +119,9 @@ $ days #gives time elapsed since predefined date
 $ days <anything> # asks for a date, gives age
 ```
 
-### 4. `attempts.py`
-
-Created this when I was preparing for GATE. After each mock test, running this script would ask me details about the attempted, correct questions etc, what went wrong, and how would I improve etc. and save it as a text file.
-
-`read` argument would list all such entries, which could be opened in the terminal right away.
-
-##### Examples
-
-```shell
-$ attempts read # lists all attempts
-$ attempts # create a new attempt, interactive
-```
-
 ### 5. `nconvert.py`
 
-For converting numbers to and from different number systems. This script was handy for GATE preparation as well, to check if my conversions are correct.
+Converts numbers to and from different number systems. This script was also handy for GATE preparation for quickly revalidating conversions during calculations.
 
 ##### Examples
 
@@ -124,12 +133,12 @@ Decimal:4092 # results
 Binary:0b111111111100
 Octal:0o7774
 Hex:0xffc
-
 ```
 
 ### 6. `imports.py`
 
-This is just because I wanted to avoid writing `import math`, everytime I wanted to use python as a calculator.
+Created to avoid repeatedly writing `import math` every time I want to use Python as a calculator.
+It also includes additional functions from combinatorics. 
 
 ##### Examples
 
@@ -138,14 +147,18 @@ $ pc # imports mostly used modules
 >>> log(10,2) # and starts this interactive shell
 3.3219280948873626
 >>>
+# or 
+$ pc
+>>> C(12,5) # binomial coeff.
 ```
 
 ### 7. `chop.py`
 ##### USAGE
+**Depends on:**  `ffmpeg`.
 ```shell
 $ chop <input.mp3> <segments.txt> <output_dir>
 ```
-Splits `input.mp3` file to smaller `.mp3` files according to timestamps defined in `segments.txt`, and saves each file to the specified `output_dir`, `output_dir` is created if it does not exist.
+Splits `input.mp3` file to smaller `.mp3` files according to timestamps defined in `segments.txt`, and saves each file to the specified `output_dir`, `output_dir` is created if it does not exist. 
 
 
 ##### Sample segments.txt
