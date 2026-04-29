@@ -57,7 +57,6 @@ def run_cmd(action):
     elif action == "--reboot":
         subprocess.run(shlex.split("systemctl reboot"))
     elif action == "--suspend":
-        subprocess.run(shlex.split("mpc -q pause"))
         subprocess.run(shlex.split("amixer set Master mute"))
         subprocess.run(shlex.split("swaylock -f -c 000000"))
         subprocess.run(shlex.split("systemctl suspend"))
