@@ -90,6 +90,13 @@ def get_cmds_for_mode(mode):
     return []
 
 
+MODE_LABELS = {
+    DisplayMode.laptop_only: "Laptop display only",
+    DisplayMode.external_only: "External display only",
+    DisplayMode.external_mirrors_laptop: "External display mirrors laptop",
+    DisplayMode.external_extends_laptop: "External display extends laptop",
+}
+
 if __name__ == "__main__":
     try:
         mode_name = sys.argv[1]
@@ -97,6 +104,7 @@ if __name__ == "__main__":
         cmds = get_cmds_for_mode(mode)
         for cmd in cmds:
             subprocess.run(shlex.split(cmd), check=True)
+        subprocess.run(["notify-send", "display.py", f"Display configuration set to: {MODE_LABELS[mode]}"])
     except IndexError:
         usage()
     except KeyError:
