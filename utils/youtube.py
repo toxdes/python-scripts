@@ -173,6 +173,7 @@ def Main():
     cmd = f'{cmd} {link_url}'
 
     # self-explanatory flags
+    cmd = f'{cmd} --js-runtimes node'
     if external_downloader:
         cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
     if playlist_flag:
