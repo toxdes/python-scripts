@@ -12,6 +12,7 @@ choices = ['240p', '360p', '480p', '720p', '1080p', '1440p']
 current_dir = os.path.abspath(os.curdir)
 DEFAULT_CHOICE = 4
 output_format = 'mp4'
+browser = 'chrome'
 
 IS_WINDOWS = os.name == 'nt'
 IS_ANDROID = False
@@ -44,6 +45,10 @@ parser.add_argument('-t', dest="is_twitch",
                     help="Custom script for twitch", action="store_true")
 parser.add_argument('-l', dest="link_from_args",
                     help="Link to the youtube URL")
+parser.add_argument('-b', dest="browser", default=None,
+                    help="Browser to read cookies from (e.g. chrome, firefox). If omitted, no cookies are sent.")
+parser.add_argument('-C', dest="cookies_file",
+                    help="Path to a Netscape cookies.txt file (used instead of --cookies-from-browser).")
 
 args = parser.parse_args()
 
@@ -88,13 +93,14 @@ def get_clipboard_text_android():
     return res.stdout.decode('utf-8')
 
 
-def get_link_url(link_from_args, link_from_clipboard, video_quality, audio_only):
+def get_link_url(link_from_args, link_from_clipboard, video_quality, audio_only, list_formats):
     ''' Get link and video quality.
             Determines if link is to be copied from clipboard, and if the video quality is valid, otherwise asks user about the same through stdin.
         Agruments:
             `link_from_clipboard` -- if the link should be taken from clipboard (Boolean) 
             `video_quality` -- video quality that should be checked for validation
             `audio_only` -- if only audio is requested, skip the video quality prompt
+            `list_formats` -- if listing formats, skip the video quality prompt
     '''
     link_url = "link will be taken from clipborad"
     if link_from_args:
@@ -115,15 +121,15 @@ def get_link_url(link_from_args, link_from_clipboard, video_quality, audio_only)
             link_url = input('Enter Video URL: ')
     else:
         link_url = input("Enter Video URL: ")
-    if not audio_only and (video_quality is None or video_quality not in choices):
+    if not audio_only and not list_formats and (video_quality is None or video_quality not in choices):
         video_quality = str(input(f'Enter Video Quality[{choices}]: '))
     return link_url, video_quality
 
 
 def Main():
     # mapping arguments to variables
-    link_from_args, link_from_clipboard, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch = (
-        args.link_from_args, args.link_from_clipboard, args.playlist, args.quality, args.output_dir, args.audio_only, args.print_only, args.list_formats, args.external_downloader, args.is_twitch)
+    link_from_args, link_from_clipboard, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch, browser, cookies_file = (
+        args.link_from_args, args.link_from_clipboard, args.playlist, args.quality, args.output_dir, args.audio_only, args.print_only, args.list_formats, args.external_downloader, args.is_twitch, args.browser, args.cookies_file)
 
     if is_twitch:
         # twitch specific special flags
@@ -145,7 +151,7 @@ def Main():
 
     # prepare video url and quality
     link_url, video_quality = get_link_url(
-        link_from_args, link_from_clipboard, video_quality, audio_only)
+        link_from_args, link_from_clipboard, video_quality, audio_only, list_formats)
 
     # prepare output directory
     output_dir = output_dir or current_dir
@@ -173,7 +179,15 @@ def Main():
     cmd = f'{cmd} {link_url}'
 
     # self-explanatory flags
+    if cookies_file:
+        cookies_arg = f'--cookies "{cookies_file}"'
+    elif browser:
+        cookies_arg = f'--cookies-from-browser {browser}'
+    else:
+        cookies_arg = ''
     cmd = f'{cmd} --js-runtimes node'
+    if cookies_arg:
+        cmd = f'{cmd} {cookies_arg}'
     if external_downloader:
         cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
     if playlist_flag:
@@ -181,7 +195,7 @@ def Main():
     if not playlist_flag:
         cmd = f'{cmd} --no-playlist --playlist-start 1 --playlist-end 1'
     if list_formats:
-        cmd = f'youtube-dl -F {link_url} --no-playlist'
+        cmd = f'youtube-dl -F {link_url} --no-playlist {cookies_arg}'
 
     # print the generated command
     print(str(cmd))
