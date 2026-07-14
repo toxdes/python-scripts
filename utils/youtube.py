@@ -2,10 +2,10 @@
 # helper code for using youtube-dl
 # almost complete, just testing is remaining. Should be useful by now.
 from argparse import ArgumentParser
-from pprint import pprint
 import shlex
 import os
 import subprocess
+import sys
 
 # constants
 choices = ['240p', '360p', '480p', '720p', '1080p', '1440p']
@@ -36,7 +36,7 @@ parser.add_argument('-o', dest="output_dir",
                     help=f"Default is current directory.")
 parser.add_argument('-r', dest="print_only", action="store_true",
                     help="Do not download, just output the generated command only.")
-parser.add_argument('-i', dest="list_formats",
+parser.add_argument('-F', dest="list_formats",
                     help="Print list of available formats to download.", action="store_true")
 parser.add_argument('-e', dest="external_downloader",
                     help="Use aria2c as the external downloader", action="store_true")
@@ -88,12 +88,13 @@ def get_clipboard_text_android():
     return res.stdout.decode('utf-8')
 
 
-def get_link_url(link_from_args, link_from_clipboard, video_quality):
+def get_link_url(link_from_args, link_from_clipboard, video_quality, audio_only):
     ''' Get link and video quality.
             Determines if link is to be copied from clipboard, and if the video quality is valid, otherwise asks user about the same through stdin.
         Agruments:
             `link_from_clipboard` -- if the link should be taken from clipboard (Boolean) 
             `video_quality` -- video quality that should be checked for validation
+            `audio_only` -- if only audio is requested, skip the video quality prompt
     '''
     link_url = "link will be taken from clipborad"
     if link_from_args:
@@ -114,7 +115,7 @@ def get_link_url(link_from_args, link_from_clipboard, video_quality):
             link_url = input('Enter Video URL: ')
     else:
         link_url = input("Enter Video URL: ")
-    if video_quality is None or video_quality not in choices:
+    if not audio_only and (video_quality is None or video_quality not in choices):
         video_quality = str(input(f'Enter Video Quality[{choices}]: '))
     return link_url, video_quality
 
@@ -138,12 +139,13 @@ def Main():
         print(str(cmd))
         if not print_only:
             p = subprocess.run(shlex.split(cmd))
+            sys.exit(p.returncode)
 
         exit(0)
 
     # prepare video url and quality
     link_url, video_quality = get_link_url(
-        link_from_args, link_from_clipboard, video_quality)
+        link_from_args, link_from_clipboard, video_quality, audio_only)
 
     # prepare output directory
     output_dir = output_dir or current_dir
@@ -156,22 +158,25 @@ def Main():
     video_quality = f'bestvideo[height<={video_quality[:-1]}]+bestaudio/best[height<={video_quality[:-1]}]'
 
     if audio_only:
-        video_quality = f'bestaudio'
+        video_quality = f'bestaudio[acodec=opus]/bestaudio'
 
     # prepare video title
-    video_title = f'%(title)s.%(ext)s'
-
     if playlist_flag:
-        video_title = f'%(playlist_index)s_{video_title}'
+        video_title = f'%(playlist)s/%(playlist_index)s_%(title)s.%(ext)s'
+    else:
+        video_title = f'%(title)s.%(ext)s'
 
     # prepare youtube-dl command
-    cmd = f'youtube-dl -f {video_quality} -o {output_dir}/{video_title} --merge-output-format {output_format} {link_url}'
+    cmd = f'youtube-dl -f {video_quality} -o {output_dir}/{video_title} --restrict-filenames'
+    if not audio_only:
+        cmd = f'{cmd} --merge-output-format {output_format}'
+    cmd = f'{cmd} {link_url}'
 
     # self-explanatory flags
     if external_downloader:
         cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
     if playlist_flag:
-        cmd = f'{cmd} --yes-playlist'
+        cmd = f'{cmd} --yes-playlist --sleep-interval 5 --max-sleep-interval 30'
     if not playlist_flag:
         cmd = f'{cmd} --no-playlist --playlist-start 1 --playlist-end 1'
     if list_formats:
@@ -183,7 +188,12 @@ def Main():
     if not print_only:
         # actually run the command
         p = subprocess.run(shlex.split(cmd))
+        sys.exit(p.returncode)
 
 
 # run Main
-Main()
+if __name__ == '__main__':
+    try:
+        Main()
+    except KeyboardInterrupt:
+        sys.exit(130)
