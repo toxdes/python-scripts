@@ -191,7 +191,7 @@ def Main():
     if external_downloader:
         cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
     if playlist_flag:
-        cmd = f'{cmd} --yes-playlist --sleep-interval 5 --max-sleep-interval 30'
+        cmd = f'{cmd} --yes-playlist --sleep-interval 5 --max-sleep-interval 15'
     if not playlist_flag:
         cmd = f'{cmd} --no-playlist --playlist-start 1 --playlist-end 1'
     if list_formats:
