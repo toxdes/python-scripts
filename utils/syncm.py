@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """syncm - sync a dir between devices (not for general use, highly specific to my needs)"""
 
+import os
 import subprocess
 import sys
 import shlex
@@ -17,8 +18,9 @@ PI_HOST = ""
 # END SYNCM_VARS
 
 # base rsync flags shared by every transfer
+# --secluded-args keeps spaces in the remote path from being split by the remote shell
 RSYNC_BASE = [
-    "rsync", "-rlv",
+    "rsync", "-rlv", "--secluded-args",
     "--no-owner", "--no-group", "--no-perms", "--no-times",
     "--info=progress2", "--prune-empty-dirs",
 ]
@@ -38,15 +40,15 @@ def run(cmd: list[str], dry_run: bool) -> bool:
 
 def sync_laptop(dry_run: bool) -> int:
     """Push new files to Pi, hollow local files, pull deletions from Pi."""
-    pi_uri = f"{PI_USER}@{PI_HOST}:{shlex.quote(PI_DIR)}/"
-    local = shlex.quote(LAPTOP_DIR) + "/"
+    pi_uri = f"{PI_USER}@{PI_HOST}:{PI_DIR}/"
+    local = LAPTOP_DIR + "/"
 
     # push new files from laptop to Pi
     if not run([*RSYNC_BASE, "--ignore-existing", local, pi_uri], dry_run):
         return 1
 
     # truncate every file on laptop to reclaim space
-    find_cmd = ["find", shlex.quote(LAPTOP_DIR), "-type", "f", "-exec", "truncate", "-s", "0", "{}", "+"]
+    find_cmd = ["find", LAPTOP_DIR, "-type", "f", "-exec", "truncate", "-s", "0", "{}", "+"]
     run(find_cmd, dry_run)
 
     # pull deletions from Pi only, never create new files on laptop
@@ -59,8 +61,9 @@ def sync_laptop(dry_run: bool) -> int:
 
 def sync_android(dry_run: bool) -> int:
     """Pull from Pi to Android. Pi is the source of truth."""
-    pi_uri = f"{PI_USER}@{PI_HOST}:{shlex.quote(PI_DIR)}/"
-    android = shlex.quote(ANDROID_DIR) + "/"
+    pi_uri = f"{PI_USER}@{PI_HOST}:{PI_DIR}/"
+    # android sync runs on the device itself, so ~ is the local (android) home
+    android = os.path.expanduser(ANDROID_DIR) + "/"
 
     if not run([*RSYNC_BASE, "--delete", "--ignore-existing", pi_uri, android], dry_run):
         return 1
