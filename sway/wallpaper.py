@@ -16,7 +16,7 @@ def main():
 
     subprocess.run(shlex.split("pkill swaybg"), capture_output=True)
 
-    cmd = f"swaybg -i {shlex.quote(str(img1))} -o HDMI-A-1 -i {shlex.quote(str(img2))} -o eDP-1 -m fill"
+    cmd = f"swaybg -o HDMI-A-1 -i {shlex.quote(str(img1))} -m fill -o eDP-1 -i {shlex.quote(str(img2))} -m fill"
     subprocess.Popen(shlex.split(cmd), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["notify-send", "wallpaper.py", "Wallpapers changed."])
 
