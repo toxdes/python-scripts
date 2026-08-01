@@ -242,7 +242,7 @@ def sync_laptop(dry_run: bool, settle_seconds: int, max_deletions: int) -> int:
     return 0
 
 
-def sync_android(dry_run: bool, max_deletions: int) -> int:
+def sync_android(dry_run: bool, max_deletions: int, verify_contents: bool) -> int:
     """Pull from Pi to Android. Pi is the source of truth."""
     pi_uri = f"{PI_USER}@{PI_HOST}:{PI_DIR}/"
     # android sync runs on the device itself, so ~ is the local (android) home
@@ -251,8 +251,10 @@ def sync_android(dry_run: bool, max_deletions: int) -> int:
     if not check_pi_sentinel():
         print(f"   x Pi sentinel missing: {PI_SENTINEL}", file=sys.stderr)
         return 1
-    # --checksum makes the Pi authoritative for contents as well as names.
-    delete_cmd = [*RSYNC_BASE, "--checksum", "--delete", pi_uri, android]
+    # Size checks catch missing/truncated files without hashing the whole Pi
+    # library on every run.  Use --verify-contents for an occasional full audit.
+    comparison_flag = "--checksum" if verify_contents else "--size-only"
+    delete_cmd = [*RSYNC_BASE, comparison_flag, "--delete", pi_uri, android]
     if not deletion_is_safe(delete_cmd, max_deletions):
         return 1
     if not run(delete_cmd, dry_run):
@@ -279,6 +281,8 @@ def main():
                         help=f"Only upload inbox files unchanged for this long (default: {DEFAULT_SETTLE_SECONDS})")
     parser.add_argument("--max-deletions", type=int, default=DEFAULT_MAX_DELETIONS,
                         help=f"Refuse a sync deleting more than this many paths (default: {DEFAULT_MAX_DELETIONS})")
+    parser.add_argument("--verify-contents", action="store_true",
+                        help="On Android, checksum every file instead of using the fast size-only check")
     args = parser.parse_args()
 
     if args.settle_seconds < 0 or args.max_deletions < 0:
@@ -287,7 +291,7 @@ def main():
         return 0 if initialize_pi_sentinel() else 1
     if args.device == "laptop":
         return sync_laptop(args.dry_run, args.settle_seconds, args.max_deletions)
-    return sync_android(args.dry_run, args.max_deletions)
+    return sync_android(args.dry_run, args.max_deletions, args.verify_contents)
 
 
 if __name__ == "__main__":
