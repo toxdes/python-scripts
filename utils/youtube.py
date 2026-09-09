@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# helper code for using youtube-dl
+# helper code for using a yt-dlp-compatible downloader
 # almost complete, just testing is remaining. Should be useful by now.
 from argparse import ArgumentParser
 import shlex
@@ -13,6 +13,11 @@ current_dir = os.path.abspath(os.curdir)
 DEFAULT_CHOICE = 4
 output_format = 'mp4'
 browser = 'chrome'
+# Override this at runtime, e.g. YTDL_BINARY=ytdlp yt ...
+YTDL_BINARY = os.environ.get("YTDL_BINARY", "yt-dlp")
+if not YTDL_BINARY.strip():
+    raise SystemExit("YTDL_BINARY must not be empty")
+YTDL_COMMAND = shlex.quote(YTDL_BINARY)
 
 IS_WINDOWS = os.name == 'nt'
 IS_ANDROID = False
@@ -24,7 +29,7 @@ if not IS_WINDOWS:
     IS_ANDROID = uname_o == 'Android'
 
 # CLI Parser
-parser = ArgumentParser(description="Helper wrapper around youtube-dl for easier usage.")
+parser = ArgumentParser(description=f"Helper wrapper around {YTDL_BINARY} for easier usage.")
 parser.add_argument('-c', dest="link_from_clipboard",
                     help="Get video link from clipboard.", action="store_true")
 parser.add_argument('-p', dest="playlist",
@@ -135,7 +140,7 @@ def Main():
         # twitch specific special flags
         link = input('VOD URL: ')
         quality = input('Quality: ')
-        cmd = f"youtube-dl -f {quality}"
+        cmd = f"{YTDL_COMMAND} -f {quality}"
 
         if external_downloader:
             cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
@@ -173,7 +178,7 @@ def Main():
         video_title = f'%(title)s.%(ext)s'
 
     # prepare youtube-dl command
-    cmd = f'youtube-dl -f {video_quality} -o {output_dir}/{video_title} --restrict-filenames'
+    cmd = f'{YTDL_COMMAND} -f {video_quality} -o {output_dir}/{video_title} --restrict-filenames'
     if not audio_only:
         cmd = f'{cmd} --merge-output-format {output_format}'
     cmd = f'{cmd} {link_url}'
@@ -195,7 +200,7 @@ def Main():
     if not playlist_flag:
         cmd = f'{cmd} --no-playlist --playlist-start 1 --playlist-end 1'
     if list_formats:
-        cmd = f'youtube-dl -F {link_url} --no-playlist {cookies_arg}'
+        cmd = f'{YTDL_COMMAND} -F {link_url} --no-playlist {cookies_arg}'
 
     # print the generated command
     print(str(cmd))
