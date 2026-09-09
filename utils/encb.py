@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run
+#!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
 # dependencies = ["boto3"]
@@ -152,10 +152,29 @@ def get_paths_size(paths):
 
 
 def get_available_memory():
-    with open("/proc/meminfo") as f:
-        for line in f:
-            if line.startswith("MemAvailable:"):
-                return int(line.split()[1]) * 1024  # kB to bytes
+    """Return an estimate of available memory, or 0 if unavailable.
+
+    Linux exposes a relatively useful estimate through /proc/meminfo. On
+    other Unix-like systems, fall back to the portable sysconf interface.
+    Returning 0 is intentional: create_archive() will then use streaming
+    mode instead of making an in-memory archive based on an unknown value.
+    """
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) * 1024  # kB to bytes
+    except (OSError, ValueError, IndexError):
+        pass
+
+    try:
+        available_pages = os.sysconf("SC_AVPHYS_PAGES")
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        if available_pages > 0 and page_size > 0:
+            return available_pages * page_size
+    except (AttributeError, OSError, ValueError):
+        pass
+
     return 0
 
 
@@ -252,7 +271,7 @@ def create_archive(paths, ts, passphrase, name=None):
     total_size = get_paths_size(paths)
     avail_mem = get_available_memory()
 
-    if total_size < avail_mem * 0.5:
+    if avail_mem and total_size < avail_mem * 0.5:
         return _create_archive_mem(paths, prefix, final_path, total_size, passphrase)
     else:
         return _create_archive_stream(paths, prefix, final_path, total_size, passphrase)
