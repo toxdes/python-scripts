@@ -554,13 +554,19 @@ env variables (set via --env or export):
         log.error("at least one path is required")
         sys.exit(1)
 
-    if not args.name:
+    uploads_enabled = not args.skip_b2 or not args.skip_aws
+    if not args.name and uploads_enabled:
         log.error("--name is required when uploading")
         sys.exit(1)
 
     validate_paths(args.paths)
 
-    check_required(*required_b2, *required_s3)
+    required = []
+    if not args.skip_b2:
+        required.extend(required_b2)
+    if not args.skip_aws:
+        required.extend(required_s3)
+    check_required(*required)
 
     passphrase = read_passphrase()
 
