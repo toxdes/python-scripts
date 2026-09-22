@@ -1,4 +1,6 @@
 bash/
 __pycache__/
+**/__pycache__/
+*.pyc
 utils/syncm_vars.py
 utils/bwro.py
