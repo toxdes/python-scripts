@@ -24,6 +24,13 @@ def usage():
     print(f"Usage: {sys.argv[0]} <{' | '.join([mode.name for mode in DisplayMode])}>")
 
 
+def notify(message):
+    try:
+        subprocess.run(["notify-send", "display.py", message], check=False)
+    except OSError:
+        pass
+
+
 def get_cmds_for_mode(mode):
     laptop = Config.LAPTOP_DISPLAY.value
     external = Config.EXTERNAL_DISPLAY.value
@@ -104,7 +111,7 @@ if __name__ == "__main__":
         cmds = get_cmds_for_mode(mode)
         for cmd in cmds:
             subprocess.run(shlex.split(cmd), check=True)
-        subprocess.run(["notify-send", "display.py", f"Display configuration set to: {MODE_LABELS[mode]}"])
+        notify(f"Display configuration set to: {MODE_LABELS[mode]}")
     except IndexError:
         usage()
     except KeyError:
