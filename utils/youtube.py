@@ -4,6 +4,7 @@
 from argparse import ArgumentParser
 import shlex
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,7 +20,6 @@ browser = 'chrome'
 YTDL_BINARY = os.environ.get("YTDL_BINARY", "yt-dlp")
 if not YTDL_BINARY.strip():
     raise SystemExit("YTDL_BINARY must not be empty")
-YTDL_COMMAND = shlex.quote(YTDL_BINARY)
 
 IS_WINDOWS = os.name == 'nt'
 IS_ANDROID = False
@@ -169,6 +169,23 @@ def write_playlist_files(manifest_path):
     return True
 
 
+def cookie_args(browser, cookies_file):
+    if cookies_file:
+        return ['--cookies', os.path.expanduser(cookies_file)]
+    if browser:
+        return ['--cookies-from-browser', browser]
+    return []
+
+
+def external_downloader_args(enabled):
+    if not enabled:
+        return []
+    return [
+        '--external-downloader', 'aria2c',
+        '--external-downloader-args', '-c -j 3 -x 3 -s 3 -k 1M',
+    ]
+
+
 def Main():
     # mapping arguments to variables
     link_from_args, link_from_clipboard, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch, browser, cookies_file = (
@@ -178,16 +195,12 @@ def Main():
         # twitch specific special flags
         link = input('VOD URL: ')
         quality = input('Quality: ')
-        cmd = f"{YTDL_COMMAND} -f {quality}"
+        cmd = [YTDL_BINARY, '-f', quality, link.strip()]
+        cmd.extend(external_downloader_args(external_downloader))
 
-        if external_downloader:
-            cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
-
-        cmd = f'{cmd} {link}'
-
-        print(str(cmd))
+        print(shlex.join(cmd))
         if not print_only:
-            p = subprocess.run(shlex.split(cmd))
+            p = subprocess.run(cmd)
             sys.exit(p.returncode)
 
         exit(0)
@@ -197,7 +210,11 @@ def Main():
         link_from_args, link_from_clipboard, video_quality, audio_only, list_formats)
 
     # prepare output directory
-    output_dir = output_dir or current_dir
+    output_dir = os.path.abspath(os.path.expanduser(output_dir or current_dir))
+
+    if audio_only and not list_formats and shutil.which('ffmpeg') is None:
+        print('Error: ffmpeg is required for -a audio conversion to M4A.', file=sys.stderr)
+        sys.exit(1)
 
     # prepare video quality
     if video_quality not in choices:
@@ -207,7 +224,7 @@ def Main():
     video_quality = f'bestvideo[height<={video_quality[:-1]}]+bestaudio/best[height<={video_quality[:-1]}]'
 
     if audio_only:
-        video_quality = f'bestaudio[acodec=opus]/bestaudio'
+        video_quality = 'bestaudio'
 
     # prepare video title
     if playlist_flag:
@@ -216,46 +233,44 @@ def Main():
         video_title = f'%(title)s.%(ext)s'
 
     # prepare youtube-dl command
-    cmd = f'{YTDL_COMMAND} -f {video_quality} -o {output_dir}/{video_title} --restrict-filenames'
+    download_template = os.path.join(output_dir, video_title)
+    cmd = [
+        YTDL_BINARY, '-f', video_quality, '-o', download_template,
+        '--restrict-filenames',
+    ]
     if not audio_only:
-        cmd = f'{cmd} --merge-output-format {output_format}'
-    cmd = f'{cmd} {link_url}'
-
-    # self-explanatory flags
-    if cookies_file:
-        cookies_arg = f'--cookies "{cookies_file}"'
-    elif browser:
-        cookies_arg = f'--cookies-from-browser {browser}'
+        cmd.extend(['--merge-output-format', output_format])
     else:
-        cookies_arg = ''
-    cmd = f'{cmd} --js-runtimes node'
-    if cookies_arg:
-        cmd = f'{cmd} {cookies_arg}'
-    if external_downloader:
-        cmd = f'{cmd} --external-downloader aria2c --external-downloader-args "-c -j 3 -x 3 -s 3 -k 1M"'
+        cmd.extend(['--extract-audio', '--audio-format', 'm4a', '--audio-quality', '0'])
+    cmd.append(link_url.strip())
+
+    cmd.extend(['--js-runtimes', 'node'])
+    cmd.extend(cookie_args(browser, cookies_file))
+    cmd.extend(external_downloader_args(external_downloader))
     if playlist_flag:
-        cmd = f'{cmd} --yes-playlist --sleep-interval 5 --max-sleep-interval 15'
+        cmd.extend(['--yes-playlist', '--sleep-interval', '5', '--max-sleep-interval', '15'])
     if not playlist_flag:
-        cmd = f'{cmd} --no-playlist --playlist-start 1 --playlist-end 1'
+        cmd.extend(['--no-playlist', '--playlist-start', '1', '--playlist-end', '1'])
     if list_formats:
-        cmd = f'{YTDL_COMMAND} -F {link_url} --no-playlist {cookies_arg}'
+        cmd = [YTDL_BINARY, '-F', link_url.strip(), '--no-playlist']
+        cmd.extend(cookie_args(browser, cookies_file))
 
     # print the generated command
-    print(str(cmd))
+    print(shlex.join(cmd))
 
     if not print_only:
         manifest_path = None
         try:
-            if playlist_flag:
+            if playlist_flag and not list_formats:
                 manifest_fd, manifest_path = tempfile.mkstemp(
                     prefix='.yt-playlist-', suffix='.txt', dir=current_dir)
                 os.close(manifest_fd)
                 os.unlink(manifest_path)
-                cmd = f'{cmd} --print-to-file after_move:filepath {shlex.quote(manifest_path)}'
+                cmd.extend(['--print-to-file', 'after_move:filepath', manifest_path])
 
             # actually run the command
-            p = subprocess.run(shlex.split(cmd))
-            if p.returncode == 0 and playlist_flag:
+            p = subprocess.run(cmd)
+            if p.returncode == 0 and manifest_path:
                 if not write_playlist_files(manifest_path):
                     p.returncode = 1
             sys.exit(p.returncode)
