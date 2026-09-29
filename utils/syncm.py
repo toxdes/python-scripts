@@ -6,7 +6,10 @@ import subprocess
 import sys
 import shlex
 import argparse
+import re
 import stat
+import signal
+import threading
 import time
 from dataclasses import dataclass
 
@@ -33,7 +36,36 @@ RSYNC_BASE = [
 ]
 
 
-def run(cmd: list[str], dry_run: bool, stdin: bytes | None = None) -> bool:
+def permission_only_failure(stderr: bytes) -> int:
+    """Return the count of harmless chmod warnings, or 0 for any other failure."""
+    diagnostics = []
+    for line in stderr.decode(errors="replace").replace("\r", "\n").splitlines():
+        if "rsync:" in line:
+            diagnostics.append(line[line.index("rsync:"):].strip())
+
+    permission_warning = re.compile(
+        r'rsync: \[(?:generator|receiver)\] failed to set permissions on .+: '
+        r'Operation not permitted \(1\)'
+    )
+    summary = re.compile(
+        r'rsync error: some files/attrs were not transferred \(see previous errors\) '
+        r'\(code 23\) at .+'
+    )
+    warnings = sum(bool(permission_warning.fullmatch(line)) for line in diagnostics)
+    if warnings and all(
+        permission_warning.fullmatch(line) or summary.fullmatch(line)
+        for line in diagnostics
+    ):
+        return warnings
+    return 0
+
+
+def run(
+    cmd: list[str],
+    dry_run: bool,
+    stdin: bytes | None = None,
+    tolerate_permission_errors: bool = False,
+) -> bool:
     """Print and run a command, returning False on non-zero exit."""
     if dry_run and cmd[0] == "rsync":
         cmd = [cmd[0], "--dry-run", *cmd[1:]]
@@ -41,10 +73,57 @@ def run(cmd: list[str], dry_run: bool, stdin: bytes | None = None) -> bool:
     if dry_run:
         if cmd[0] != "rsync":
             return True
-    res = subprocess.run(cmd, input=stdin)
-    if res.returncode != 0:
-        print(f"   x exited {res.returncode}", file=sys.stderr)
-        return False
+    if tolerate_permission_errors and cmd[0] == "rsync":
+        process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE if stdin is not None else None,
+            stderr=subprocess.PIPE,
+        )
+        stderr_chunks = []
+
+        def forward_stderr():
+            while chunk := process.stderr.read1(4096):
+                stderr_chunks.append(chunk)
+                sys.stderr.buffer.write(chunk)
+                sys.stderr.buffer.flush()
+
+        reader = threading.Thread(target=forward_stderr)
+        reader.start()
+        try:
+            if stdin is not None:
+                try:
+                    process.stdin.write(stdin)
+                except BrokenPipeError:
+                    pass
+                finally:
+                    try:
+                        process.stdin.close()
+                    except BrokenPipeError:
+                        pass
+            returncode = process.wait()
+        except KeyboardInterrupt:
+            process.send_signal(signal.SIGINT)
+            process.wait()
+            raise
+        finally:
+            reader.join()
+
+        if returncode != 0:
+            ignored = permission_only_failure(b"".join(stderr_chunks))
+            if returncode == 23 and ignored:
+                print(
+                    f"   ! ignored {ignored} destination permission warning(s); "
+                    "file data transferred, destination modes are mount-controlled",
+                    file=sys.stderr,
+                )
+                return True
+            print(f"   x exited {returncode}", file=sys.stderr)
+            return False
+    else:
+        res = subprocess.run(cmd, input=stdin)
+        if res.returncode != 0:
+            print(f"   x exited {res.returncode}", file=sys.stderr)
+            return False
     return True
 
 
@@ -226,7 +305,12 @@ def sync_laptop(dry_run: bool, settle_seconds: int, max_deletions: int) -> int:
         upload_cmd = [
             *RSYNC_BASE, "--ignore-existing", "--from0", "--files-from=-", inbox + "/", pi_uri,
         ]
-        if not run(upload_cmd, dry_run, stdin=files_from(snapshots)):
+        if not run(
+            upload_cmd,
+            dry_run,
+            stdin=files_from(snapshots),
+            tolerate_permission_errors=True,
+        ):
             return 1
     if not dry_run and not remove_uploaded_incoming(snapshots, LAPTOP_DIR):
         return 1

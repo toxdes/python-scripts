@@ -6,6 +6,8 @@ import shlex
 import os
 import subprocess
 import sys
+import tempfile
+from collections import OrderedDict
 
 # constants
 choices = ['240p', '360p', '480p', '720p', '1080p', '1440p']
@@ -131,6 +133,42 @@ def get_link_url(link_from_args, link_from_clipboard, video_quality, audio_only,
     return link_url, video_quality
 
 
+def write_playlist_files(manifest_path):
+    """Write one local M3U beside each downloaded yt-dlp playlist directory."""
+    playlists = OrderedDict()
+    try:
+        with open(manifest_path, encoding='utf-8') as manifest:
+            for line in manifest:
+                path = os.path.abspath(line.strip())
+                if not path or not os.path.isfile(path):
+                    continue
+                playlists.setdefault(os.path.dirname(path), []).append(path)
+    except OSError as error:
+        print(f'Could not read yt-dlp playlist manifest: {error}', file=sys.stderr)
+        return False
+
+    for playlist_dir, paths in playlists.items():
+        playlist_name = os.path.basename(playlist_dir) or 'playlist'
+        playlist_path = os.path.join(playlist_dir, f'{playlist_name}.m3u')
+        entries = []
+        seen = set()
+        for path in paths:
+            relative_path = os.path.relpath(path, playlist_dir).replace(os.sep, '/')
+            if relative_path not in seen:
+                seen.add(relative_path)
+                entries.append(relative_path)
+        try:
+            with open(playlist_path, 'w', encoding='utf-8', newline='\n') as playlist:
+                playlist.write('#EXTM3U\n')
+                playlist.write('\n'.join(entries))
+                playlist.write('\n')
+            print(f'Wrote playlist: {playlist_path}')
+        except OSError as error:
+            print(f'Could not write playlist {playlist_path}: {error}', file=sys.stderr)
+            return False
+    return True
+
+
 def Main():
     # mapping arguments to variables
     link_from_args, link_from_clipboard, playlist_flag, video_quality, output_dir, audio_only, print_only, list_formats, external_downloader, is_twitch, browser, cookies_file = (
@@ -206,9 +244,27 @@ def Main():
     print(str(cmd))
 
     if not print_only:
-        # actually run the command
-        p = subprocess.run(shlex.split(cmd))
-        sys.exit(p.returncode)
+        manifest_path = None
+        try:
+            if playlist_flag:
+                manifest_fd, manifest_path = tempfile.mkstemp(
+                    prefix='.yt-playlist-', suffix='.txt', dir=current_dir)
+                os.close(manifest_fd)
+                os.unlink(manifest_path)
+                cmd = f'{cmd} --print-to-file after_move:filepath {shlex.quote(manifest_path)}'
+
+            # actually run the command
+            p = subprocess.run(shlex.split(cmd))
+            if p.returncode == 0 and playlist_flag:
+                if not write_playlist_files(manifest_path):
+                    p.returncode = 1
+            sys.exit(p.returncode)
+        finally:
+            if manifest_path:
+                try:
+                    os.unlink(manifest_path)
+                except FileNotFoundError:
+                    pass
 
 
 # run Main
