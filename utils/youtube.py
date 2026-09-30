@@ -147,6 +147,13 @@ def write_playlist_files(manifest_path):
         print(f'Could not read yt-dlp playlist manifest: {error}', file=sys.stderr)
         return False
 
+    if not playlists:
+        print(
+            'No existing downloaded files were found in the yt-dlp playlist manifest.',
+            file=sys.stderr,
+        )
+        return False
+
     for playlist_dir, paths in playlists.items():
         playlist_name = os.path.basename(playlist_dir) or 'playlist'
         playlist_path = os.path.join(playlist_dir, f'{playlist_name}.m3u')
@@ -266,12 +273,15 @@ def Main():
                     prefix='.yt-playlist-', suffix='.txt', dir=current_dir)
                 os.close(manifest_fd)
                 os.unlink(manifest_path)
-                cmd.extend(['--print-to-file', 'after_move:filepath', manifest_path])
+                cmd.extend([
+                    '--print-to-file', 'after_move:%(filepath)s', manifest_path,
+                ])
 
             # actually run the command
             p = subprocess.run(cmd)
-            if p.returncode == 0 and manifest_path:
-                if not write_playlist_files(manifest_path):
+            if manifest_path:
+                playlist_written = write_playlist_files(manifest_path)
+                if p.returncode == 0 and not playlist_written:
                     p.returncode = 1
             sys.exit(p.returncode)
         finally:
