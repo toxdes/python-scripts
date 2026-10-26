@@ -56,6 +56,18 @@ def update_sonora() -> None:
     tag, asset_url = get_latest_asset(architecture)
 
     target = Path.home() / ".local" / "bin" / "sonora"
+    version_file = (
+        Path.home() / ".local" / "share" / "applications" / "sonora" / "version"
+    )
+    version_file.parent.mkdir(parents=True, exist_ok=True)
+    if (
+        target.is_file()
+        and version_file.is_file()
+        and version_file.read_text().strip() == tag
+    ):
+        print(f"Sonora {tag} is already installed; skipping download.")
+        return
+
     target.parent.mkdir(parents=True, exist_ok=True)
 
     temp_path = None
@@ -89,6 +101,7 @@ def update_sonora() -> None:
 
         temp_path.chmod(0o755)
         temp_path.replace(target)
+        version_file.write_text(f"{tag}\n")
         print(f"Installed Sonora {tag} at {target}")
     finally:
         if temp_path is not None:
