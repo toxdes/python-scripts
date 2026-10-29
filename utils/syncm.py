@@ -401,6 +401,64 @@ def initialize_pi_sentinel() -> bool:
     return run(["ssh", f"{PI_USER}@{PI_HOST}", remote_command], dry_run=False)
 
 
+def build_skeleton(dry_run: bool) -> int:
+    """Create missing empty laptop references from the Pi's regular-file list."""
+    if not check_pi_sentinel():
+        print(f"   x Pi sentinel missing: {PI_SENTINEL}", file=sys.stderr)
+        return 1
+    # NUL delimiters preserve spaces, Unicode, and newlines in filenames.
+    command = [
+        "ssh", f"{PI_USER}@{PI_HOST}",
+        f"cd -- {shlex.quote(PI_DIR)} && test -f {shlex.quote(PI_SENTINEL)} "
+        "&& find . -type f -print0",
+    ]
+    print(f"\n>> {shlex.join(command)}", file=sys.stderr)
+    try:
+        result = subprocess.run(command, stdout=subprocess.PIPE)
+    except OSError as error:
+        print(f"   x could not list Pi files: {error}", file=sys.stderr)
+        return 1
+    if result.returncode:
+        print(f"   x Pi file listing exited {result.returncode}", file=sys.stderr)
+        return 1
+    if result.stdout and not result.stdout.endswith(b"\0"):
+        print("   x incomplete Pi file listing", file=sys.stderr)
+        return 1
+
+    root = os.path.realpath(os.path.expanduser(LAPTOP_DIR))
+    paths = []
+    # Validate the entire listing before creating any local paths.
+    for entry in result.stdout.split(b"\0")[:-1]:
+        relative = os.fsdecode(entry[2:]) if entry.startswith(b"./") else ""
+        if not relative or any(part in {"", ".", ".."} for part in relative.split("/")):
+            print(f"   x invalid Pi file path: {entry!r}", file=sys.stderr)
+            return 1
+        if relative == PI_SENTINEL:
+            continue
+        destination = os.path.join(root, relative)
+        # Preserve existing files, including links, without following them.
+        if not os.path.lexists(destination):
+            parent = os.path.realpath(os.path.dirname(destination))
+            if os.path.commonpath([root, parent]) != root:
+                print(f"   x reference parent escapes laptop root: {relative!r}", file=sys.stderr)
+                return 1
+        paths.append(relative)
+
+    created = existing = 0
+    for relative in dict.fromkeys(paths):
+        if os.path.lexists(os.path.join(root, relative)):
+            existing += 1
+            continue
+        if dry_run:
+            print(f"   + would create reference: {relative!r}", file=sys.stderr)
+        elif not create_reference(root, relative):
+            return 1
+        created += 1
+    action = "would create" if dry_run else "created"
+    print(f"\nSkeleton: {action} {created} reference(s), kept {existing} existing path(s)", file=sys.stderr)
+    return 0
+
+
 def planned_deletions(sync_cmd: list[str]) -> list[str] | None:
     """Return destination paths rsync would delete, without changing either side."""
     preview_cmd = [sync_cmd[0], "--dry-run", "--out-format=%i|%n", *sync_cmd[1:]]
@@ -511,8 +569,11 @@ def main():
                         help="Which device to run the sync from (default: laptop)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Preview imports and rsync changes without modifying either device")
-    parser.add_argument("--init-pi-sentinel", action="store_true",
-                        help="Create the Pi safety sentinel after verifying its music mount")
+    maintenance = parser.add_mutually_exclusive_group()
+    maintenance.add_argument("--init-pi-sentinel", action="store_true",
+                             help="Create the Pi safety sentinel after verifying its music mount")
+    maintenance.add_argument("--build-skeleton", action="store_true",
+                             help="Create missing empty laptop references from the Pi without downloading audio")
     parser.add_argument("--settle-seconds", type=int, default=DEFAULT_SETTLE_SECONDS,
                         help=f"Only upload inbox files unchanged for this long (default: {DEFAULT_SETTLE_SECONDS})")
     parser.add_argument("--max-deletions", type=int, default=DEFAULT_MAX_DELETIONS,
@@ -523,6 +584,10 @@ def main():
 
     if args.settle_seconds < 0 or args.max_deletions < 0:
         parser.error("--settle-seconds and --max-deletions must be non-negative")
+    if args.build_skeleton:
+        if args.device != "laptop":
+            parser.error("--build-skeleton is only available for laptop")
+        return build_skeleton(args.dry_run)
     if args.init_pi_sentinel:
         return 0 if initialize_pi_sentinel() else 1
     if args.device == "laptop":
