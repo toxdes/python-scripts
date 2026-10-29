@@ -11,9 +11,14 @@ import stat
 import signal
 import threading
 import time
+import json
+import shutil
+import tempfile
 from dataclasses import dataclass
 
 # constants
+# Optional private setting; older injected vars can omit it to disable imports.
+IMPORT_DIR = ""
 # BEGIN SYNCM_VARS -- values injected from syncm_vars.py by the syncm installer
 LAPTOP_DIR = ""
 PI_DIR = ""
@@ -26,6 +31,8 @@ PI_HOST = ""
 PI_SENTINEL = ".syncm-pi-root"
 DEFAULT_SETTLE_SECONDS = 120
 DEFAULT_MAX_DELETIONS = 100
+AUDIO_EXTENSIONS = {".m4a", ".mp3", ".flac", ".aac", ".ogg", ".opus"}
+IMPORT_TEMP_PREFIX = ".syncm-import-"
 
 # base rsync flags shared by every transfer
 # --secluded-args keeps spaces in the remote path from being split by the remote shell
@@ -165,6 +172,7 @@ def settled_incoming_files(directory: str, settle_seconds: int) -> list[FileSnap
                 continue
             if (
                 stat.S_ISREG(file_stat.st_mode)
+                and not name.startswith(IMPORT_TEMP_PREFIX)
                 and file_stat.st_size > 0
                 and file_stat.st_mtime_ns <= cutoff
                 and os.path.relpath(path, directory) != PI_SENTINEL
@@ -200,6 +208,148 @@ def unchanged(snapshot: FileSnapshot) -> bool:
         and file_stat.st_size == snapshot.size
         and file_stat.st_mtime_ns == snapshot.mtime_ns
     )
+
+
+def path_component(value: str) -> str:
+    """Replace filesystem-unsafe characters while preserving readable names."""
+    value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", value).strip().rstrip(".")
+    if not value:
+        raise ValueError("empty filename component")
+    return value
+
+
+def tag_number(value: str) -> tuple[int, int]:
+    """Read a positive number, optionally followed by /total."""
+    number, _, total = value.partition("/")
+    result = int(number), int(total or "0")
+    if result[0] < 1 or result[1] < 0:
+        raise ValueError(f"invalid track/disc number: {value!r}")
+    return result
+
+
+def read_import_tags(path: str) -> dict[str, str]:
+    """Probe audio without altering the original file or its embedded metadata."""
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries",
+         "format_tags:stream=codec_type:stream_tags", "-of", "json", path],
+        capture_output=True, text=True, timeout=30,
+    )
+    if result.returncode:
+        raise ValueError(f"could not read audio metadata: {result.stderr.strip()}")
+    metadata = json.loads(result.stdout)
+    audio = [stream for stream in metadata.get("streams", [])
+             if stream.get("codec_type") == "audio"]
+    if not audio:
+        raise ValueError("no audio stream")
+    tags = {}
+    for source in [*audio, metadata.get("format", {})]:
+        tags.update({key.lower(): str(value) for key, value in source.get("tags", {}).items()})
+    return tags
+
+
+def stage_import(snapshot: FileSnapshot, destination: str) -> bool:
+    """Publish a complete copy without replacing an existing inbox file."""
+    os.makedirs(os.path.dirname(destination), exist_ok=True)
+    temporary = None
+    try:
+        with open(snapshot.path, "rb") as source, tempfile.NamedTemporaryFile(
+            dir=os.path.dirname(destination), prefix=IMPORT_TEMP_PREFIX, delete=False,
+        ) as target:
+            temporary = target.name
+            source_stat = os.fstat(source.fileno())
+            if (source_stat.st_dev, source_stat.st_ino, source_stat.st_size, source_stat.st_mtime_ns) != (
+                snapshot.device, snapshot.inode, snapshot.size, snapshot.mtime_ns,
+            ):
+                raise ValueError("source changed before copying")
+            shutil.copyfileobj(source, target)
+            target.flush()
+            os.fsync(target.fileno())
+        if not unchanged(snapshot) or os.path.getsize(temporary) != snapshot.size:
+            raise ValueError("source changed while copying")
+        # A settled source can join this run's upload immediately.
+        os.utime(temporary, ns=(snapshot.mtime_ns, snapshot.mtime_ns))
+        try:
+            os.link(temporary, destination)
+        except FileExistsError:
+            return False
+        return True
+    finally:
+        if temporary is not None:
+            os.unlink(temporary)
+
+
+def import_music(dry_run: bool, settle_seconds: int) -> bool:
+    """Copy configured audio into the inbox using metadata-based library paths.
+
+    Originals and non-audio files stay in the source directory. Run after the
+    downloader finishes: the age check cannot identify a stalled download.
+    """
+    if not IMPORT_DIR:
+        return True
+    directory = os.path.expanduser(IMPORT_DIR)
+    if not os.path.isdir(directory):
+        print(f"   x import directory does not exist: {directory}", file=sys.stderr)
+        return False
+    candidates = [snapshot for snapshot in settled_incoming_files(directory, settle_seconds)
+                  if os.path.splitext(snapshot.path)[1].lower() in AUDIO_EXTENSIONS]
+    if not candidates:
+        return True
+    if not shutil.which("ffprobe"):
+        print("   x audio import requires ffprobe (FFmpeg)", file=sys.stderr)
+        return False
+
+    tracks = []
+    album_discs = {}
+    success = True
+    for snapshot in sorted(candidates, key=lambda item: item.relative_path):
+        try:
+            tags = read_import_tags(snapshot.path)
+            compilation = tags.get("compilation", "").lower() in {"1", "true", "yes"}
+            artist = "Compilations" if compilation else path_component(tags["album_artist"])
+            album = os.path.join(artist, path_component(tags["album"]))
+            title = path_component(tags["title"])
+            track, _ = tag_number(tags["track"])
+            disc, total = tag_number(tags.get("disc", "1"))
+            total = max(total, int(tags.get("disctotal", tags.get("totaldiscs", tags.get("disc_total", "0")))))
+            album_discs[album] = max(album_discs.get(album, 1), disc, total)
+            tracks.append((snapshot, album, title, track, disc))
+        except (KeyError, ValueError, OSError, subprocess.TimeoutExpired) as error:
+            print(f"   x cannot import {snapshot.relative_path!r}: {error}", file=sys.stderr)
+            success = False
+
+    # Existing references can identify a multi-disc album when totals are absent.
+    for album in album_discs:
+        for root in (LAPTOP_DIR, incoming_dir()):
+            folder = os.path.join(root, album)
+            if os.path.isdir(folder):
+                with os.scandir(folder) as entries:
+                    if any(re.match(r"\d+-\d+ ", entry.name) for entry in entries):
+                        album_discs[album] = max(album_discs[album], 2)
+
+    planned = set()
+    for snapshot, album, title, track, disc in tracks:
+        prefix = f"{disc}-" if album_discs[album] > 1 else ""
+        extension = os.path.splitext(snapshot.path)[1].lower()
+        relative = os.path.join(album, f"{prefix}{track:02d} {title}{extension}")
+        destination = os.path.join(incoming_dir(), relative)
+        reference = os.path.join(LAPTOP_DIR, relative)
+        if relative in planned or os.path.lexists(destination) or os.path.lexists(reference):
+            print(f"   = already present: {relative}", file=sys.stderr)
+            continue
+        planned.add(relative)
+        try:
+            if not unchanged(snapshot):
+                raise ValueError("source changed while reading metadata")
+            if dry_run:
+                print(f"   + would import: {snapshot.relative_path} -> {relative}", file=sys.stderr)
+            elif stage_import(snapshot, destination):
+                print(f"   + imported: {relative}", file=sys.stderr)
+        except (OSError, ValueError) as error:
+            print(f"   x cannot import {snapshot.relative_path!r}: {error}", file=sys.stderr)
+            success = False
+    if dry_run and planned:
+        print("   ! proposed imports are not staged or included in this rsync dry-run", file=sys.stderr)
+    return success
 
 
 def create_reference(reference_root: str, relative_path: str) -> bool:
@@ -292,6 +442,8 @@ def sync_laptop(dry_run: bool, settle_seconds: int, max_deletions: int) -> int:
     if not check_pi_sentinel():
         print(f"   x Pi sentinel missing: {PI_SENTINEL}", file=sys.stderr)
         return 1
+    if not import_music(dry_run, settle_seconds):
+        return 1
     if os.path.isdir(inbox):
         snapshots = settled_incoming_files(inbox, settle_seconds)
     elif dry_run:
@@ -358,7 +510,7 @@ def main():
     parser.add_argument("device", nargs="?", default="laptop", choices=["laptop", "android"],
                         help="Which device to run the sync from (default: laptop)")
     parser.add_argument("--dry-run", action="store_true",
-                        help="Show rsync changes without modifying either device")
+                        help="Preview imports and rsync changes without modifying either device")
     parser.add_argument("--init-pi-sentinel", action="store_true",
                         help="Create the Pi safety sentinel after verifying its music mount")
     parser.add_argument("--settle-seconds", type=int, default=DEFAULT_SETTLE_SECONDS,
