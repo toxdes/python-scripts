@@ -196,3 +196,26 @@ A graphical power menu (shutdown, reboot, lock, suspend, logout) using Rofi.
 ### 10. `waybar/music.py`
 
 Displays current playback info from `playerctl` for use in Waybar status bar.
+
+### 11. `utils/syncm.py`
+
+Syncs a private music library between devices. Paths and connection settings are
+injected from encrypted `utils/syncm_vars.py.gpg` at install time.
+
+The optional private setting `IMPORT_DIR` enables audio imports on laptop syncs.
+Imports require `ffprobe` (FFmpeg) and use album artist, album, track, disc, and
+title tags to create library paths. Run after downloads finish. Originals stay
+in the import directory; existing reference or inbox paths are skipped, including
+empty references. Non-audio files are ignored. Missing required tags stop the
+sync with a diagnostic. Multi-disc naming uses tagged totals, discs seen in the
+import batch, or existing disc-prefixed filenames in the library/inbox.
+
+`--dry-run` previews imports without creating files; its rsync preview covers
+only files already staged in the inbox. Older private vars that omit `IMPORT_DIR`
+keep imports disabled.
+
+On a new laptop, run `syncm --build-skeleton --dry-run` to preview rebuilding
+references from the Pi, then `syncm --build-skeleton` to create them. This mode
+checks the Pi sentinel and reads only the regular-file list; it creates missing
+zero-byte references without downloading audio, deleting paths, importing files,
+or modifying the incoming directory. Existing local files are preserved.
